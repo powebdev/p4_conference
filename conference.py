@@ -39,6 +39,8 @@ from models import TeeShirtSize
 from models import Session
 from models import SessionForm
 from models import SessionForms
+from models import SessionQueryForm
+from models import SessionQueryForms
 from models import Speaker
 
 from settings import WEB_CLIENT_ID
@@ -59,24 +61,29 @@ DEFAULTS = {
     "city": "Default City",
     "maxAttendees": 0,
     "seatsAvailable": 0,
-    "topics": [ "Default", "Topic" ],
+    "topics": ["Default", "Topic"],
 }
 
 OPERATORS = {
-            'EQ':   '=',
-            'GT':   '>',
-            'GTEQ': '>=',
-            'LT':   '<',
-            'LTEQ': '<=',
-            'NE':   '!='
-            }
+    'EQ':   '=',
+    'GT':   '>',
+    'GTEQ': '>=',
+    'LT':   '<',
+    'LTEQ': '<=',
+    'NE':   '!='
+}
 
-FIELDS =    {
-            'CITY': 'city',
-            'TOPIC': 'topics',
-            'MONTH': 'month',
-            'MAX_ATTENDEES': 'maxAttendees',
-            }
+FIELDS = {
+    'CITY': 'city',
+    'TOPIC': 'topics',
+    'MONTH': 'month',
+    'MAX_ATTENDEES': 'maxAttendees',
+}
+
+SESSION_FIELDS = {
+    "DURATION": "duration",
+    "START_TIME": "start_time",
+}
 
 CONF_GET_REQUEST = endpoints.ResourceContainer(
     message_types.VoidMessage,
@@ -92,6 +99,23 @@ SESSION_CREATE_REQUEST = endpoints.ResourceContainer(
     SessionForm,
     websafeConferenceKey=messages.StringField(1),
 )
+
+CONF_SESSION_GET_REQUEST = endpoints.ResourceContainer(
+    message_types.VoidMessage,
+    websafeConferenceKey=messages.StringField(1),
+    )
+
+CONF_SESSION_TYPE_GET_REQUEST = endpoints.ResourceContainer(
+    message_types.VoidMessage,
+    websafeConferenceKey=messages.StringField(1),
+    session_type=messages.StringField(2),
+    )
+
+CONF_SESSION_QUERY_GET_REQUEST = endpoints.ResourceContainer(
+    SessionQueryForms,
+    websafeConferenceKey=messages.StringField(1),
+    )
+
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
 
@@ -280,13 +304,15 @@ class ConferenceApi(remote.Service):
         inequality_field = None
 
         for f in filters:
-            filtr = {field.name: getattr(f, field.name) for field in f.all_fields()}
+            filtr = {field.name: getattr(f, field.name)
+                     for field in f.all_fields()}
 
             try:
                 filtr["field"] = FIELDS[filtr["field"]]
                 filtr["operator"] = OPERATORS[filtr["operator"]]
             except KeyError:
-                raise endpoints.BadRequestException("Filter contains invalid field or operator.")
+                raise endpoints.BadRequestException(
+                    "Filter contains invalid field or operator.")
 
             # Every operation except "=" is an inequality
             if filtr["operator"] != "=":
@@ -294,7 +320,8 @@ class ConferenceApi(remote.Service):
                 # disallow the filter if inequality was performed on a different field before
                 # track the field on which the inequality operation is performed
                 if inequality_field and inequality_field != filtr["field"]:
-                    raise endpoints.BadRequestException("Inequality filter is allowed on only one field.")
+                    raise endpoints.BadRequestException(
+                        "Inequality filter is allowed on only one field.")
                 else:
                     inequality_field = filtr["field"]
 
@@ -321,8 +348,7 @@ class ConferenceApi(remote.Service):
 
         # return individual ConferenceForm object per Conference
         return ConferenceForms(
-                items=[self._copyConferenceToForm(conf, names[conf.organizerUserId]) for conf in \
-                conferences]
+                items=[self._copyConferenceToForm(conf, names[conf.organizerUserId]) for conf in conferences]
         )
 
 
@@ -616,24 +642,33 @@ class ConferenceApi(remote.Service):
         """Create new session in given conference"""
         return self._createSessionObject(request)
 
-    @endpoints.method(CONF_GET_REQUEST, SessionForms,
-                      path='getConferenceSessions',
-                      http_method='POST', name='getConferenceSessions')
-    def getConferenceSessions(self, request):
-        """Return conferences created by user."""
-        # make sure user is authed
-#        user = endpoints.get_current_user()
-#        if not user:
-#            raise endpoints.UnauthorizedException('Authorization required')
-
-        # create ancestor query for all key matches for this user
+    def _getConferenceSessions(self, request):
         wsck = request.websafeConferenceKey
         conf_sessions = Session.query(ancestor=ndb.Key(urlsafe=wsck))
+        conf_sessions = conf_sessions.order(Session.start_time)
 
-        # return set of ConferenceForm objects per Conference
+        return conf_sessions
+
+    @endpoints.method(CONF_SESSION_GET_REQUEST, SessionForms,
+                      path='getConferenceSessions',
+                      http_method='GET', name='getConferenceSessions')
+    def getConferenceSessions(self, request):
+        """Return sessions belong to conference()."""
+        conf_sessions = self._getConferenceSessions(request)
         return SessionForms(
-            items=[self._copySessionToForm(session, "default")
-                   for session in conf_sessions])
+            items=[self._copySessionToForm(each_session, "default") for each_session in conf_sessions]
+        )
 
+    @endpoints.method(CONF_SESSION_TYPE_GET_REQUEST, SessionForms,
+                      path='getConferenceSessionsByType',
+                      http_method='GET',
+                      name='getConferenceSessionsByType')
+    def getConferenceSessionsByType(self, request):
+        conf_sessions = self._getConferenceSessions(request)
+        type_name = request.session_type
+        conf_sessions = conf_sessions.filter(Session.session_type == type_name)
+        return SessionForms(
+            items=[self._copySessionToForm(each_session, "default") for each_session in conf_sessions]
+        )
 
 api = endpoints.api_server([ConferenceApi])  # register API

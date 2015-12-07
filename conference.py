@@ -38,6 +38,7 @@ from models import ConferenceQueryForms
 from models import TeeShirtSize
 from models import Session
 from models import SessionForm
+from models import SessionForms
 from models import Speaker
 
 from settings import WEB_CLIENT_ID
@@ -614,6 +615,25 @@ class ConferenceApi(remote.Service):
     def createSession(self, request):
         """Create new session in given conference"""
         return self._createSessionObject(request)
+
+    @endpoints.method(CONF_GET_REQUEST, SessionForms,
+                      path='getConferenceSessions',
+                      http_method='POST', name='getConferenceSessions')
+    def getConferenceSessions(self, request):
+        """Return conferences created by user."""
+        # make sure user is authed
+#        user = endpoints.get_current_user()
+#        if not user:
+#            raise endpoints.UnauthorizedException('Authorization required')
+
+        # create ancestor query for all key matches for this user
+        wsck = request.websafeConferenceKey
+        conf_sessions = Session.query(ancestor=ndb.Key(urlsafe=wsck))
+
+        # return set of ConferenceForm objects per Conference
+        return SessionForms(
+            items=[self._copySessionToForm(session, "default")
+                   for session in conf_sessions])
 
 
 api = endpoints.api_server([ConferenceApi])  # register API

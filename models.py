@@ -106,6 +106,7 @@ class Session(ndb.Model):
     session_type = ndb.StringProperty()
     date = ndb.DateProperty()
     start_time = ndb.StringProperty()
+    speaker_name = ndb.StringProperty()
 
 
 class SessionForm(messages.Message):
@@ -117,8 +118,8 @@ class SessionForm(messages.Message):
     session_type = messages.StringField(5)
     date = messages.StringField(6)
     start_time = messages.StringField(7)
-    websafe_key = messages.StringField(8)
-    speaker_name = messages.StringField(9)
+    speaker_name = messages.StringField(8)
+    websafe_key = messages.StringField(9)
 
 
 class SessionForms(messages.Message):

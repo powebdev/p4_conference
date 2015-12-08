@@ -575,13 +575,17 @@ class ConferenceApi(remote.Service):
     def filterPlayground(self, request):
         """Filter Playground"""
         q = Conference.query()
-        q = q.filter(Conference.city == "London")
-        q = q.filter(Conference.topics == "Medical Innovations")
-        q = q.filter(Conference.month == 6)
-
-        return ConferenceForms(
-            items=[self._copyConferenceToForm(conf, "") for conf in q]
-        )
+#        q = q.filter(Conference.city != "London")
+        q = q.filter(Conference.maxAttendees == 20)
+#        q = q.filter(Conference.month > 6)
+        cfs = ConferenceForms()
+        for conf in q:
+            if conf.city != "Tokyo":
+                cfs.items.append(self._copyConferenceToForm(conf, ""))
+        return cfs
+#        return ConferenceForms(
+#            items=[self._copyConferenceToForm(conf, "") for conf in q]
+#        )
 
     def _getSpeaker(self, speaker_name):
         """Return Speaker from datastore, creating new one if non-existent."""
@@ -779,5 +783,35 @@ class ConferenceApi(remote.Service):
         return SessionForms(
             items=[self._copySessionToForm(conf_session)
                    for conf_session in conf_sessions])
+
+    @endpoints.method(message_types.VoidMessage, SessionForms,
+                      path='querySessionByTime',
+                      http_method='GET',
+                      name='querySessionByTime')
+    def querySessionByTime(self):
+        return None
+
+    @endpoints.method(message_types.VoidMessage, SessionForms,
+                      path='querySessionByDuration',
+                      http_method='GET',
+                      name='querySessionByDuration')
+    def querySessionByDuration(self):
+        return None
+
+    @endpoints.method(message_types.VoidMessage, SessionForms,
+                      path='solvedProblematicQuery',
+                      http_method='GET',
+                      name='solvedProblematicQuery')
+    def solvedProblematicQuery(self, request):
+        all_sessions = Session.query()
+        all_sessions = (all_sessions
+                        .filter(Session.start_time < "19:00")
+                        .order(Session.start_time))
+        sfs = SessionForms()
+        for item in all_sessions:
+            if item.session_type != "workshops":
+                sfs.items.append(self._copySessionToForm(item))
+        return sfs
+
 
 api = endpoints.api_server([ConferenceApi])  # register API

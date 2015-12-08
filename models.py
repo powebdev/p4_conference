@@ -102,7 +102,7 @@ class Session(ndb.Model):
     name = ndb.StringProperty(required=True)
     highlights = ndb.StringProperty()
     speaker_id = ndb.StringProperty()
-    duration = ndb.IntegerProperty()
+    duration = ndb.IntegerProperty()  # in minutes
     session_type = ndb.StringProperty()
     date = ndb.DateProperty()
     start_time = ndb.StringProperty()
@@ -114,9 +114,12 @@ class SessionForm(messages.Message):
     name = messages.StringField(1)
     highlights = messages.StringField(2)
     speaker_id = messages.StringField(3)
-    duration = messages.IntegerField(4)
+    duration = messages.IntegerField(4)  # in minutes
     session_type = messages.StringField(5)
     date = messages.StringField(6)
+    # starting time needs to be in 24hr hh:mm format
+    # 7 pm => 19:00
+    # 9:30 am => 09:30
     start_time = messages.StringField(7)
     speaker_name = messages.StringField(8)
     websafe_key = messages.StringField(9)

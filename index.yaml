@@ -93,6 +93,11 @@ indexes:
 - kind: Conference
   properties:
   - name: topics
+  - name: month
+
+- kind: Conference
+  properties:
+  - name: topics
   - name: name
 
 - kind: Session

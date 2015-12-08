@@ -53,6 +53,7 @@ from utils import getUserId
 EMAIL_SCOPE = endpoints.EMAIL_SCOPE
 API_EXPLORER_CLIENT_ID = endpoints.API_EXPLORER_CLIENT_ID
 MEMCACHE_ANNOUNCEMENTS_KEY = "RECENT_ANNOUNCEMENTS"
+MEMCACHE_FEATURED_SPEAKERS_KEY = "FEATURED_SPEAKERS"
 ANNOUNCEMENT_TPL = ('Last chance to attend! The following conferences '
                     'are nearly sold out: %s')
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -479,6 +480,22 @@ class ConferenceApi(remote.Service):
         return StringMessage(data=memcache
                              .get(MEMCACHE_ANNOUNCEMENTS_KEY) or "")
 
+    @staticmethod
+    def _cacheFeaturedSpeaker(session_name, speaker_name):
+        """Create Featured Speaker Announcement & assign to memcache.
+        """
+        cached_msg = "Come check out featured speaker: %s at session: %s" % (
+            speaker_name, session_name,)
+        memcache.set(MEMCACHE_FEATURED_SPEAKERS_KEY, cached_msg)
+        return cached_msg
+
+    @endpoints.method(message_types.VoidMessage, StringMessage,
+                      path='conference/featured_speaker/get',
+                      http_method='GET', name='getFeaturedSpeaker')
+    def getFeaturedSpeaker(self, request):
+        """Return Featured Speaker from memcache."""
+        return StringMessage(data=memcache
+                             .get(MEMCACHE_FEATURED_SPEAKERS_KEY) or "")
 
 # - - - Registration - - - - - - - - - - - - - - - - - - - -
 
@@ -583,9 +600,6 @@ class ConferenceApi(remote.Service):
             if conf.city != "Tokyo":
                 cfs.items.append(self._copyConferenceToForm(conf, ""))
         return cfs
-#        return ConferenceForms(
-#            items=[self._copyConferenceToForm(conf, "") for conf in q]
-#        )
 
     def _getSpeaker(self, speaker_name):
         """Return Speaker from datastore, creating new one if non-existent."""
@@ -641,6 +655,12 @@ class ConferenceApi(remote.Service):
         wssk = new_session_key.urlsafe()
         new_session = ndb.Key(urlsafe=wssk).get()
 
+        if data['speaker_name'] != "TBA":
+            taskqueue.add(params={'speaker_name': data['speaker_name'],
+                                  'wsck': wsck,
+                                  'session_name': data['name']},
+                          url='/tasks/find_featured_speaker')
+
         return self._copySessionToForm(new_session)
 
     def _copySessionToForm(self, session_object):
@@ -667,11 +687,10 @@ class ConferenceApi(remote.Service):
         """Create new session in given conference"""
         return self._createSessionObject(request)
 
-    def _getConferenceSessions(self, request):
+    @staticmethod
+    def _getConferenceSessions(wsck):
         """Return sessions belong to conference(by websafeConferenceKey)."""
-        wsck = request.websafeConferenceKey
         conf_sessions = Session.query(ancestor=ndb.Key(urlsafe=wsck))
-        conf_sessions = conf_sessions.order(Session.start_time)
 
         return conf_sessions
 
@@ -680,7 +699,8 @@ class ConferenceApi(remote.Service):
                       http_method='GET', name='getConferenceSessions')
     def getConferenceSessions(self, request):
         """Return sessions belong to conference(by websafeConferenceKey)."""
-        conf_sessions = self._getConferenceSessions(request)
+        wsck = request.websafeConferenceKey
+        conf_sessions = Session.query(ancestor=ndb.Key(urlsafe=wsck))
         return SessionForms(
             items=[self._copySessionToForm(each_session)
                    for each_session in conf_sessions])
@@ -692,12 +712,18 @@ class ConferenceApi(remote.Service):
     def getConferenceSessionsByType(self, request):
         """Return sessions belong to conference(by websafeConferenceKey)
         with requested session type."""
-        conf_sessions = self._getConferenceSessions(request)
+        wsck = request.websafeConferenceKey
+        conf_sessions = Session.query(ancestor=ndb.Key(urlsafe=wsck))
         type_name = request.session_type
         conf_sessions = conf_sessions.filter(Session.session_type == type_name)
         return SessionForms(
             items=[self._copySessionToForm(each_session)
                    for each_session in conf_sessions])
+
+    @staticmethod
+    def _filterSessionsBySpeaker(in_sessions, speaker_name):
+        return in_sessions.filter(
+            Session.speaker_name == speaker_name)
 
     @endpoints.method(SESSION_SPEAKER_GET_REQUEST, SessionForms,
                       path='getSessionsBySpeaker',
@@ -707,11 +733,11 @@ class ConferenceApi(remote.Service):
         """Return sessions by a given speaker"""
         all_sessions = Session.query()
         speaker_name = request.speaker_name
-        all_sessions = all_sessions.filter(
+        filtered_sessions = all_sessions.filter(
             Session.speaker_name == speaker_name)
         return SessionForms(
             items=[self._copySessionToForm(each_session)
-                   for each_session in all_sessions])
+                   for each_session in filtered_sessions])
 
     def _alterWishlist(self, request, add=True):
         """Add or remove sessions fromo wishlist."""
@@ -784,25 +810,80 @@ class ConferenceApi(remote.Service):
             items=[self._copySessionToForm(conf_session)
                    for conf_session in conf_sessions])
 
-    @endpoints.method(message_types.VoidMessage, SessionForms,
-                      path='querySessionByTime',
-                      http_method='GET',
-                      name='querySessionByTime')
-    def querySessionByTime(self):
-        return None
+    def _getSessionQuery(self, request):
+        """Return formatted query from the submitted filters."""
+        wsck = request.websafeConferenceKey
+        conf_sessions = Session.query(ancestor=ndb.Key(urlsafe=wsck))
+        inequality_filter, filters = (self
+                                      ._formatSessionFilters(request.filters))
 
-    @endpoints.method(message_types.VoidMessage, SessionForms,
-                      path='querySessionByDuration',
-                      http_method='GET',
-                      name='querySessionByDuration')
-    def querySessionByDuration(self):
-        return None
+        # If exists, sort on inequality filter first
+        if not inequality_filter:
+            conf_sessions = conf_sessions.order(Session.start_time)
+        else:
+            conf_sessions = conf_sessions.order(
+                ndb.GenericProperty(inequality_filter))
+            conf_sessions = conf_sessions.order(Session.start_time)
+
+        for filtr in filters:
+            if filtr["field"] in ["duration"]:
+                filtr["value"] = int(filtr["value"])
+            formatted_query = ndb.query.FilterNode(
+                filtr["field"], filtr["operator"], filtr["value"])
+            conf_sessions = conf_sessions.filter(formatted_query)
+        return conf_sessions
+
+    def _formatSessionFilters(self, filters):
+        """Parse, check validity and format user supplied filters."""
+        formatted_filters = []
+        inequality_field = None
+
+        for f in filters:
+            filtr = {field.name: getattr(f, field.name)
+                     for field in f.all_fields()}
+
+            try:
+                filtr["field"] = SESSION_FIELDS[filtr["field"]]
+                filtr["operator"] = OPERATORS[filtr["operator"]]
+            except KeyError:
+                raise endpoints.BadRequestException(
+                    "Filter contains invalid field or operator.")
+
+            # Every operation except "=" is an inequality
+            if filtr["operator"] != "=":
+                # check if inequality operation has been used in previous
+                # filters disallow the filter if inequality was performed
+                # on a different field before track the field on which the
+                # inequality operation is performed
+                if inequality_field and inequality_field != filtr["field"]:
+                    raise endpoints.BadRequestException(
+                        "Inequality filter is allowed on only one field.")
+                else:
+                    inequality_field = filtr["field"]
+
+            formatted_filters.append(filtr)
+        return (inequality_field, formatted_filters)
+
+    @endpoints.method(CONF_SESSION_QUERY_GET_REQUEST, SessionForms,
+                      path='querySession',
+                      http_method='POST',
+                      name='querySession')
+    def querySession(self, request):
+        """Query for sessions"""
+        conf_sessions = self._getSessionQuery(request)
+
+        # return individual ConferenceForm object per Conference
+        return SessionForms(
+            items=[self._copySessionToForm(
+                one_session) for one_session in conf_sessions])
 
     @endpoints.method(message_types.VoidMessage, SessionForms,
                       path='solvedProblematicQuery',
                       http_method='GET',
                       name='solvedProblematicQuery')
     def solvedProblematicQuery(self, request):
+        """ Implementation of proposed solution for problematic query in Task 3.
+        """
         all_sessions = Session.query()
         all_sessions = (all_sessions
                         .filter(Session.start_time < "19:00")

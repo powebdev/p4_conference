@@ -42,12 +42,13 @@ class SendConfirmationEmailHandler(webapp2.RequestHandler):
 class FindFeaturedSpeakerHandler(webapp2.RequestHandler):
     def post(self):
         """Find speakers with more than one session at a conference"""
-        speaker_name = self.request.get('speaker_name')
+        websafe_speaker_key = self.request.get('websafe_speaker_key')
         wsck = self.request.get('wsck')
         conf_sessions = ConferenceApi._getConferenceSessions(wsck)
         if conf_sessions:
-            filtered_sessions = ConferenceApi._filterSessionsBySpeaker(
-                conf_sessions, speaker_name)
+            filtered_sessions, speaker_name = (
+                (ConferenceApi._filterSessionsBySpeaker(
+                    conf_sessions, websafe_speaker_key)))
             number_of_sessions = filtered_sessions.count()
             if number_of_sessions >= 2:
                 session_name = self.request.get('session_name')

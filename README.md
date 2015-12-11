@@ -14,16 +14,11 @@ Project ID: project-4-conference-app-1152</br>
 - [Google Cloud Endpoints][3]
 
 ## Setup Instructions
-1. Confirm the value of `application` in `app.yaml` to __project-4-conference-app-1152__
-1. Confirm the values at the top of `settings.py` to
-   reflect the respective client IDs you have registered in the
-   [Developer Console][4].
-1. Update the value of CLIENT_ID in `static/js/app.js` to the Web client ID
-1. (Optional) Mark the configuration files as unchanged as follows:
-   `$ git update-index --assume-unchanged app.yaml settings.py static/js/app.js`
-1. Run the app with the devserver using `dev_appserver.py DIR`, and ensure it's running by visiting your local server's address (by default [localhost:8080][5].)
-1. (Optional) Generate your client library(ies) with [the endpoints tool][6].
-1. Deploy your application.
+1. Confirm the value of `application` in `app.yaml` is __project-4-conference-app-1152__
+1. Confirm the WEB_CLIENT_ID at the top of `settings.py` is _684135836499-qmo8iv918ffgi8vs5cqafgjlc5drqoj3.apps.googleusercontent.com__
+1. Confirm the value of CLIENT_ID in `static/js/app.js` is the same as WEB_CLIENTID in settings.py.
+1. Run the app with the devserver using `dev_appserver.py DIR`, and ensure it's running by visiting your local server's address (by default [localhost:8080][4].)
+1. Deploy the application.
 
 ##Exceeds Spec Criteria
 * Implemented entity for speakers
@@ -39,11 +34,11 @@ Session class is going to have fields of:
 * duration: Integer type, duration of the session in minutes, integer type allow inequality querying to find sessions which are over or under certain dutation
 * session_type: String type, type of session, bunch of texts
 * date: Date type, this corresponds to the Pythono date class
-* start_time: String type, the starting time of the session in 24 hr format ie. hh:mm. 7pm -> 19:00 and 9:30am -> 09:30
+* start_time: Time type, the starting time of the session in 24 hr format ie. hh:mm. 7pm -> 19:00 and 9:30am -> 09:30
 
 In the SessionForm class there are also websafe_key field which is a text string which can be used to access session objects easily.
 
-The session speakers are going to be implemented as entities which are saved in the datastore. To start out the Speaker kind only has one field which contains the name of the speaker, but it can be expanded in the future and accommendates more detailed information about the speaker much like the Profile kind does.
+The session speakers are going to be implemented as entities which are saved in the datastore. This allows two different speaker with the same name to be represented as two different entities. The speaker entities contains basic information of the speakers, currently name of the speaker and biobraphical information. The entities also store the keys to the sessions the speaker will be speaking at. The key can then be used to retrieve the sessions where the speaker will be speak at easily. The endpoints methods __createSpeaker()__, __getSpeaker(websafeSpeakerKey)__, and __updateSpeaker(websafeSpeakerKey)__ are implemented to add retrive, and update speaker entities. the endpoints method __getAllSpeakers()__ is also provided to retrieve information of all speakers in the datastore.
 
 Session is created as child of Conference, this allows user to perform query by kind filter by ancestor to retrieve sessions belong to one conference.
 
@@ -62,6 +57,4 @@ The implementation will be the Endpoints method __solvedProblematicQuery()__
 [1]: https://developers.google.com/appengine
 [2]: http://python.org
 [3]: https://developers.google.com/appengine/docs/python/endpoints/
-[4]: https://console.developers.google.com/
-[5]: https://localhost:8080/
-[6]: https://developers.google.com/appengine/docs/python/endpoints/endpoints_tool
+[4]: https://localhost:8080/

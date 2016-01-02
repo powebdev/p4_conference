@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en-us">
+  <head>
+    <meta charset="UTF-8">
+    <title>P4 conference by powebdev</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" type="text/css" href="stylesheets/normalize.css" media="screen">
+    <link href='https://fonts.googleapis.com/css?family=Open+Sans:400,700' rel='stylesheet' type='text/css'>
+    <link rel="stylesheet" type="text/css" href="stylesheets/stylesheet.css" media="screen">
+    <link rel="stylesheet" type="text/css" href="stylesheets/github-light.css" media="screen">
+  </head>
+  <body>
+    <section class="page-header">
+      <h1 class="project-name">P4 conference</h1>
+      <h2 class="project-tagline">Project 4 for Udacity Full Stack Web Dev Nanodegree</h2>
+      <a href="https://github.com/powebdev/p4_conference" class="btn">View on GitHub</a>
+      <a href="https://github.com/powebdev/p4_conference/zipball/master" class="btn">Download .zip</a>
+      <a href="https://github.com/powebdev/p4_conference/tarball/master" class="btn">Download .tar.gz</a>
+    </section>
+
+    <section class="main-content">
+      <h1>
+<a id="p4_conference" class="anchor" href="#p4_conference" aria-hidden="true"><span class="octicon octicon-link"></span></a>p4_conference</h1>
+
+<p>Project 4 for Udacity Full Stack Web Dev Nanodegree
+Project ID: project-4-conference-app-1152
+<a href="https://project-4-conference-app-1152.appspot.com/">Deployed App</a>
+<a href="https://project-4-conference-app-1152.appspot.com/_ah/api/explorer">API Explorer Link</a></p>
+
+<h2>
+<a id="products" class="anchor" href="#products" aria-hidden="true"><span class="octicon octicon-link"></span></a>Products</h2>
+
+<ul>
+<li><a href="https://developers.google.com/appengine">App Engine</a></li>
+</ul>
+
+<h2>
+<a id="language" class="anchor" href="#language" aria-hidden="true"><span class="octicon octicon-link"></span></a>Language</h2>
+
+<ul>
+<li><a href="http://python.org">Python 2.x</a></li>
+</ul>
+
+<h2>
+<a id="apis" class="anchor" href="#apis" aria-hidden="true"><span class="octicon octicon-link"></span></a>APIs</h2>
+
+<ul>
+<li><a href="https://developers.google.com/appengine/docs/python/endpoints/">Google Cloud Endpoints</a></li>
+</ul>
+
+<h2>
+<a id="setup-instructions" class="anchor" href="#setup-instructions" aria-hidden="true"><span class="octicon octicon-link"></span></a>Setup Instructions</h2>
+
+<ol>
+<li>Confirm the value of <code>application</code> in <code>app.yaml</code> is <strong>project-4-conference-app-1152</strong>
+</li>
+<li>Confirm the WEB_CLIENT_ID at the top of <code>settings.py</code> is <em>684135836499-qmo8iv918ffgi8vs5cqafgjlc5drqoj3.apps.googleusercontent.com_</em>
+</li>
+<li>Confirm the value of CLIENT_ID in <code>static/js/app.js</code> is the same as WEB_CLIENTID in settings.py.</li>
+<li>Run the app with the devserver using <code>dev_appserver.py DIR</code>, and ensure it's running by visiting your local server's address (by default <a href="https://localhost:8080/">localhost:8080</a>.)</li>
+<li>Deploy the application.</li>
+</ol>
+
+<h2>
+<a id="exceeds-spec-criteria" class="anchor" href="#exceeds-spec-criteria" aria-hidden="true"><span class="octicon octicon-link"></span></a>Exceeds Spec Criteria</h2>
+
+<ul>
+<li>Implemented entity for speakers</li>
+<li>Speaker entity can be expanded with more information of the speaker</li>
+<li>Implemented proposed solution for problematic query in task 3</li>
+</ul>
+
+<h2>
+<a id="session-and-speaker-design-response" class="anchor" href="#session-and-speaker-design-response" aria-hidden="true"><span class="octicon octicon-link"></span></a>Session and Speaker Design Response:</h2>
+
+<p>Session class is going to have fields of:</p>
+
+<ul>
+<li>name(required field): String type, names are bunch texts</li>
+<li>highlights: String type, highlights are bunch texts</li>
+<li>speaker_id: String type, urlsafe id for speaker entities which are bunch texts</li>
+<li>speaker_name: String type, names are bunch texts</li>
+<li>duration: Integer type, duration of the session in minutes, integer type allow inequality querying to find sessions which are over or under certain dutation</li>
+<li>session_type: String type, type of session, bunch of texts</li>
+<li>date: Date type, this corresponds to the Pythono date class</li>
+<li>start_time: Time type, the starting time of the session in 24 hr format ie. hh:mm. 7pm -&gt; 19:00 and 9:30am -&gt; 09:30</li>
+</ul>
+
+<p>In the SessionForm class there are also websafe_key field which is a text string which can be used to access session objects easily.</p>
+
+<p>The session speakers are going to be implemented as entities which are saved in the datastore. This allows two different speaker with the same name to be represented as two different entities. The speaker entities contains basic information of the speakers, currently name of the speaker and biobraphical information. The entities also store the keys to the sessions the speaker will be speaking at. The key can then be used to retrieve the sessions where the speaker will be speak at easily. The endpoints methods <strong>createSpeaker()</strong>, <strong>getSpeaker(websafeSpeakerKey)</strong>, and <strong>updateSpeaker(websafeSpeakerKey)</strong> are implemented to add retrive, and update speaker entities. the endpoints method <strong>getAllSpeakers()</strong> is also provided to retrieve information of all speakers in the datastore.</p>
+
+<p>Session is created as child of Conference, this allows user to perform query by kind filter by ancestor to retrieve sessions belong to one conference.</p>
+
+<h2>
+<a id="task-3-additional-queries" class="anchor" href="#task-3-additional-queries" aria-hidden="true"><span class="octicon octicon-link"></span></a>Task 3: Additional Queries</h2>
+
+<p>The two additional query types I've decided to add are finding sessions starting before or after a certain time, and sessions with duration less than or more than a certain amount. These would allow the user to plan there schedule accordingly.</p>
+
+<p>The additional queries propsoed are handled in one single Endpoints method <strong>querySessions()</strong>. User can use filters to perform the desired query much like the <b>queryConfrences()</b> Endpoints method.</p>
+
+<h2>
+<a id="task-3-query-problem" class="anchor" href="#task-3-query-problem" aria-hidden="true"><span class="octicon octicon-link"></span></a>Task 3: Query Problem</h2>
+
+<p>If we want to run query to find sessions which are not workshops and take place before 7 pm, we would need to use two inequality filters for the query. This is however not allowed on GAE.</p>
+
+<p>I've decided to handle the query programmically with the backend logic. I am going to run one inequality query on the app engine, in this case the start_time filter, and then run the query result in the python code and filter out the results with session type of workshops using a for loop. Then return only those satisfy both criteria.</p>
+
+<p>The implementation will be the Endpoints method <strong>solvedProblematicQuery()</strong></p>
+
+      <footer class="site-footer">
+        <span class="site-footer-owner"><a href="https://github.com/powebdev/p4_conference">P4 conference</a> is maintained by <a href="https://github.com/powebdev">powebdev</a>.</span>
+
+        <span class="site-footer-credits">This page was generated by <a href="https://pages.github.com">GitHub Pages</a> using the <a href="https://github.com/jasonlong/cayman-theme">Cayman theme</a> by <a href="https://twitter.com/jasonlong">Jason Long</a>.</span>
+      </footer>
+
+    </section>
+
+  
+  </body>
+</html>
